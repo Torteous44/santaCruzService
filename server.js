@@ -21,11 +21,32 @@ const PORT = process.env.PORT || 5000;
 console.log(`Environment: ${process.env.NODE_ENV}`);
 console.log(`Server configured to use port: ${PORT}`);
 
-// Middleware
+// CORS Configuration
+// Allow all origins in development, specific origins in production
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com']
+  : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL];
+
+console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
+
+// Apply CORS middleware with configuration
 app.use(cors({
-  origin: ['http://localhost:3000', process.env.FRONTEND_URL, 'https://santacruz.onrender.com/'].filter(Boolean),
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  optionsSuccessStatus: 204
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
