@@ -19,27 +19,21 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter for multer to accept only images supported by Cloudflare
+// File filter for multer to accept only images
 const fileFilter = (req, file, cb) => {
-  // Check if the file is an image
-  if (!file.mimetype.startsWith('image/')) {
-    return cb(new Error('Only image files are allowed!'), false);
+  // Accept any file that has an image mimetype
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
   }
-  
-  // Check if the file extension is supported by Cloudflare
-  const ext = path.extname(file.originalname).toLowerCase();
-  if (!SUPPORTED_FORMATS.includes(ext)) {
-    return cb(new Error(`Unsupported image format. Cloudflare Images supports: ${SUPPORTED_FORMATS.join(', ')}`), false);
-  }
-  
-  cb(null, true);
 };
 
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit (Cloudflare max size)
+    fileSize: 25 * 1024 * 1024 // 25MB limit
   }
 });
 
@@ -64,24 +58,21 @@ router.get('/', async (req, res) => {
 
 // POST a new photo
 router.post('/upload', upload.single('imageFile'), async (req, res) => {
+  // Explicitly set CORS headers on this route
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  
   try {
-    console.log('Upload request received:', {
-      headers: req.headers,
-      filePresent: !!req.file,
-      body: { ...req.body, imageFile: req.file ? '(file present)' : '(no file)' }
-    });
+    console.log('Upload request received');
     
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { contributor, floorId, roomId } = req.body;
-
-    if (!contributor || !floorId) {
-      return res.status(400).json({ 
-        error: 'Please provide contributor name and floor ID' 
-      });
-    }
+    const contributor = req.body.contributor || 'Anonymous';
+    const floorId = req.body.floorId || 'Unknown';
+    const roomId = req.body.roomId || '';
 
     // Format date as "Mon YYYY"
     const date = new Date().toLocaleDateString("en-US", {
@@ -99,14 +90,13 @@ router.post('/upload', upload.single('imageFile'), async (req, res) => {
 
     // Get temporary file path
     const tempFilePath = path.join(__dirname, '../uploads/temp', req.file.filename);
-    console.log('Temporary file path:', tempFilePath);
     
-    // Upload image to Cloudflare
     try {
+      // Upload image to Cloudflare
       const cloudflareResponse = await uploadImage(tempFilePath, metadata);
       
       if (!cloudflareResponse.success) {
-        throw new Error('Failed to upload image to Cloudflare: ' + JSON.stringify(cloudflareResponse));
+        throw new Error('Failed to upload image to Cloudflare');
       }
       
       const cloudflareId = cloudflareResponse.result.id;
@@ -118,7 +108,6 @@ router.post('/upload', upload.single('imageFile'), async (req, res) => {
         date,
         floorId,
         roomId: roomId || undefined,
-        tempFilePath: `/uploads/temp/${req.file.filename}`,
         cloudflareId,
         imageUrl,
         originalFileName: req.file.originalname,
@@ -127,11 +116,20 @@ router.post('/upload', upload.single('imageFile'), async (req, res) => {
 
       await newPhoto.save();
 
+      // Clean up temp file
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (unlinkError) {
+        console.error('Error deleting temp file:', unlinkError);
+      }
+
       res.status(201).json({ 
         message: 'Photo uploaded and pending approval',
         photo: newPhoto
       });
     } catch (cloudflareError) {
+      console.error('Cloudflare upload error:', cloudflareError);
+      
       // Clean up temp file on error
       try {
         if (fs.existsSync(tempFilePath)) {
@@ -141,13 +139,14 @@ router.post('/upload', upload.single('imageFile'), async (req, res) => {
         console.error('Error deleting temp file:', unlinkError);
       }
       
-      throw cloudflareError;
+      res.status(500).json({
+        error: 'Error uploading to Cloudflare: ' + cloudflareError.message
+      });
     }
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ 
-      error: err.message || 'Server error during upload',
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      error: 'Server error during upload: ' + err.message
     });
   }
 });
