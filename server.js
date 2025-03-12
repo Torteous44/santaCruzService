@@ -24,7 +24,7 @@ console.log(`Server configured to use port: ${PORT}`);
 // CORS Configuration
 // Allow all origins in development, specific origins in production
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com']
+  ? [process.env.FRONTEND_URL, 'https://www.santacruzarchive.net/', 'https://www.santacruzarchive.net/']
   : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL];
 
 console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
