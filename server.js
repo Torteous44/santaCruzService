@@ -24,32 +24,28 @@ console.log(`Server configured to use port: ${PORT}`);
 // CORS Configuration
 // Allow all origins in development, specific origins in production
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com', 'https://www.santacruzarchive.net', 'https://santacruzarchive.net']
-  : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL];
+  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com', 'https://www.santacruzarchive.net', 'https://santacruzarchive.net', '*']
+  : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL, '*'];
 
 console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
 
-// Apply CORS middleware with configuration
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+// Create a more permissive CORS configuration for uploads
+const corsOptions = {
+  origin: '*', // Allow all origins for now to debug the issue
   credentials: true,
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  allowedHeaders: 'Content-Type,Authorization,X-Requested-With',
-  optionsSuccessStatus: 204
-}));
+  allowedHeaders: 'Content-Type,Authorization,X-Requested-With,Accept,Origin',
+  exposedHeaders: 'Content-Range,X-Content-Range',
+  maxAge: 86400, // 24 hours
+  optionsSuccessStatus: 204,
+  preflightContinue: false
+};
 
-// Handle OPTIONS preflight requests
-app.options('*', cors());
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle OPTIONS preflight requests specifically
+app.options('*', cors(corsOptions));
 
 // Increase the limit for JSON and URL-encoded payloads
 app.use(express.json({ limit: '50mb' }));
