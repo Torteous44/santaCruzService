@@ -31,34 +31,31 @@ console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
 
 // Create a wildcard CORS middleware for Render deployment
 app.use((req, res, next) => {
-  // Get the origin from the request headers
-  const origin = req.headers.origin;
-  
-  // Always include CORS headers on all responses for Render deployment
+  // Set wildcard CORS headers for maximum leniency
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Log CORS headers being applied
-  console.log(`Setting CORS headers for origin: ${origin || 'unknown'}`);
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   // For preflight OPTIONS requests, respond immediately
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
     return res.status(204).end();
   }
   
   next();
 });
 
-// Standard CORS middleware as backup
+// Standard CORS middleware as backup with maximum leniency
 app.use(cors({
   origin: '*',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
-  optionsSuccessStatus: 204
+  methods: '*',
+  allowedHeaders: '*',
+  exposedHeaders: '*',
+  maxAge: 86400,
+  optionsSuccessStatus: 204,
+  preflightContinue: false
 }));
 
 // Increase the limit for JSON and URL-encoded payloads

@@ -363,21 +363,23 @@ router.post('/direct-upload', upload.single('imageFile'), async (req, res) => {
 
 // CORS status check endpoint
 router.get('/cors-check', (req, res) => {
-  // Explicitly set CORS headers
+  // Set maximally permissive CORS headers
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
   
   res.json({
     corsStatus: 'ok',
-    message: 'CORS headers are being set correctly',
+    message: 'Using extremely permissive CORS configuration that should work with any client',
     receivedOrigin: req.headers.origin || 'none',
     timestamp: new Date().toISOString(),
     headers: {
       sent: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'
+        'Access-Control-Allow-Methods': '*',
+        'Access-Control-Allow-Headers': '*'
       },
       received: req.headers
     }
