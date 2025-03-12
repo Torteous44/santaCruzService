@@ -24,28 +24,42 @@ console.log(`Server configured to use port: ${PORT}`);
 // CORS Configuration
 // Allow all origins in development, specific origins in production
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com', 'https://www.santacruzarchive.net', 'https://santacruzarchive.net', '*']
-  : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL, '*'];
+  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com', 'https://www.santacruzarchive.net', 'https://santacruzarchive.net']
+  : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL];
 
 console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
 
-// Create a more permissive CORS configuration for uploads
-const corsOptions = {
-  origin: '*', // Allow all origins for now to debug the issue
+// Create a wildcard CORS middleware for Render deployment
+app.use((req, res, next) => {
+  // Get the origin from the request headers
+  const origin = req.headers.origin;
+  
+  // Always include CORS headers on all responses for Render deployment
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Log CORS headers being applied
+  console.log(`Setting CORS headers for origin: ${origin || 'unknown'}`);
+  
+  // For preflight OPTIONS requests, respond immediately
+  if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
+    return res.status(204).end();
+  }
+  
+  next();
+});
+
+// Standard CORS middleware as backup
+app.use(cors({
+  origin: '*',
   credentials: true,
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  allowedHeaders: 'Content-Type,Authorization,X-Requested-With,Accept,Origin',
-  exposedHeaders: 'Content-Range,X-Content-Range',
-  maxAge: 86400, // 24 hours
-  optionsSuccessStatus: 204,
-  preflightContinue: false
-};
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Handle OPTIONS preflight requests specifically
-app.options('*', cors(corsOptions));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  optionsSuccessStatus: 204
+}));
 
 // Increase the limit for JSON and URL-encoded payloads
 app.use(express.json({ limit: '50mb' }));
@@ -89,6 +103,24 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
+  
+  // Special handling for CORS errors
+  if (err.message.includes('CORS')) {
+    console.error('CORS Error Details:', {
+      origin: req.headers.origin,
+      method: req.method,
+      path: req.path,
+      headers: req.headers
+    });
+    
+    return res.status(403).json({
+      error: 'CORS Error',
+      message: err.message,
+      origin: req.headers.origin,
+      allowedOrigins: allowedOrigins.filter(Boolean)
+    });
+  }
+  
   res.status(500).json({
     error: 'Server Error',
     message: err.message
