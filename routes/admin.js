@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
+const Photo = require('../models/Photo');
 
 // Health check endpoint
 router.get('/healthcheck', async (req, res) => {
@@ -58,6 +59,59 @@ router.get('/debug', (req, res) => {
   };
   
   res.json(debugInfo);
+});
+
+// Get all pending photos
+router.get('/photos/pending', async (req, res) => {
+  try {
+    const pendingPhotos = await Photo.find({ status: 'pending' })
+      .sort({ submittedAt: -1 });
+    
+    res.json(pendingPhotos);
+  } catch (err) {
+    console.error('Error fetching pending photos:', err);
+    res.status(500).json({ 
+      error: 'Server error fetching pending photos',
+      message: err.message
+    });
+  }
+});
+
+// Get photo statistics
+router.get('/photos/stats', async (req, res) => {
+  try {
+    const stats = await Photo.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Convert array to object with status as keys
+    const statsObj = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      total: 0
+    };
+    
+    stats.forEach(item => {
+      statsObj[item._id] = item.count;
+    });
+    
+    // Calculate total
+    statsObj.total = statsObj.pending + statsObj.approved + statsObj.rejected;
+    
+    res.json(statsObj);
+  } catch (err) {
+    console.error('Error fetching photo statistics:', err);
+    res.status(500).json({ 
+      error: 'Server error fetching photo statistics',
+      message: err.message
+    });
+  }
 });
 
 module.exports = router; 
