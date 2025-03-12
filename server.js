@@ -23,7 +23,7 @@ console.log(`Server configured to use port: ${PORT}`);
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean),
+  origin: ['http://localhost:3000', process.env.FRONTEND_URL, 'https://santacruz.onrender.com/'].filter(Boolean),
   credentials: true
 }));
 app.use(express.json());
