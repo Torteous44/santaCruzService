@@ -24,7 +24,7 @@ console.log(`Server configured to use port: ${PORT}`);
 // CORS Configuration
 // Allow all origins in development, specific origins in production
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL, 'https://www.santacruzarchive.net/', 'https://www.santacruzarchive.net/']
+  ? [process.env.FRONTEND_URL, 'https://santacruzarchive.netlify.app', 'https://santacruzarchive.com', 'https://santacruz.onrender.com', 'https://www.santacruzarchive.net', 'https://santacruzarchive.net']
   : ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL];
 
 console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
@@ -35,7 +35,7 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
@@ -43,9 +43,13 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: 'Content-Type,Authorization,X-Requested-With',
   optionsSuccessStatus: 204
 }));
+
+// Handle OPTIONS preflight requests
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

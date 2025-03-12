@@ -52,7 +52,9 @@ router.get('/debug', (req, res) => {
       { method: 'PUT', path: '/api/photos/:id/approve', description: 'Approve a pending photo' },
       { method: 'PUT', path: '/api/photos/:id/reject', description: 'Reject a pending photo' },
       { method: 'GET', path: '/api/admin/healthcheck', description: 'Check API health status' },
-      { method: 'GET', path: '/api/admin/debug', description: 'This debug endpoint' }
+      { method: 'GET', path: '/api/admin/debug', description: 'This debug endpoint' },
+      { method: 'GET', path: '/api/admin/photos/pending', description: 'Get all pending photos' },
+      { method: 'GET', path: '/api/admin/photos/stats', description: 'Get photo statistics' }
     ],
     nodeVersion: process.version,
     memoryUsage: process.memoryUsage(),
