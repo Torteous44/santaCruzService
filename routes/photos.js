@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const Photo = require('../models/Photo');
-const { uploadImage, deleteImage, getImageUrl } = require('../utils/cloudflare');
+const { uploadImage, deleteImage, getImageUrl, SUPPORTED_FORMATS } = require('../utils/cloudflare');
 
 // Configure multer for file storage
 const storage = multer.diskStorage({
@@ -19,20 +19,27 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter for multer to accept only images
+// File filter for multer to accept only images supported by Cloudflare
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'), false);
+  // Check if the file is an image
+  if (!file.mimetype.startsWith('image/')) {
+    return cb(new Error('Only image files are allowed!'), false);
   }
+  
+  // Check if the file extension is supported by Cloudflare
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!SUPPORTED_FORMATS.includes(ext)) {
+    return cb(new Error(`Unsupported image format. Cloudflare Images supports: ${SUPPORTED_FORMATS.join(', ')}`), false);
+  }
+  
+  cb(null, true);
 };
 
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 10 * 1024 * 1024 // 10MB limit (Cloudflare max size)
   }
 });
 
@@ -88,37 +95,50 @@ router.post('/upload', upload.single('imageFile'), async (req, res) => {
     const tempFilePath = path.join(__dirname, '../uploads/temp', req.file.filename);
     
     // Upload image to Cloudflare
-    const cloudflareResponse = await uploadImage(tempFilePath, metadata);
-    
-    if (!cloudflareResponse.success) {
-      throw new Error('Failed to upload image to Cloudflare');
+    try {
+      const cloudflareResponse = await uploadImage(tempFilePath, metadata);
+      
+      if (!cloudflareResponse.success) {
+        throw new Error('Failed to upload image to Cloudflare');
+      }
+      
+      const cloudflareId = cloudflareResponse.result.id;
+      const imageUrl = getImageUrl(cloudflareId);
+
+      // Create new photo entry in database
+      const newPhoto = new Photo({
+        contributor,
+        date,
+        floorId,
+        roomId: roomId || undefined,
+        tempFilePath: `/uploads/temp/${req.file.filename}`,
+        cloudflareId,
+        imageUrl,
+        originalFileName: req.file.originalname,
+        status: 'pending'
+      });
+
+      await newPhoto.save();
+
+      res.status(201).json({ 
+        message: 'Photo uploaded and pending approval',
+        photo: newPhoto
+      });
+    } catch (cloudflareError) {
+      // Clean up temp file on error
+      try {
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      } catch (unlinkError) {
+        console.error('Error deleting temp file:', unlinkError);
+      }
+      
+      throw cloudflareError;
     }
-    
-    const cloudflareId = cloudflareResponse.result.id;
-    const imageUrl = getImageUrl(cloudflareId);
-
-    // Create new photo entry in database
-    const newPhoto = new Photo({
-      contributor,
-      date,
-      floorId,
-      roomId: roomId || undefined,
-      tempFilePath: `/uploads/temp/${req.file.filename}`,
-      cloudflareId,
-      imageUrl,
-      originalFileName: req.file.originalname,
-      status: 'pending'
-    });
-
-    await newPhoto.save();
-
-    res.status(201).json({ 
-      message: 'Photo uploaded and pending approval',
-      photo: newPhoto
-    });
   } catch (err) {
     console.error('Upload error:', err);
-    res.status(500).json({ error: 'Server error during upload' });
+    res.status(500).json({ error: err.message || 'Server error during upload' });
   }
 });
 
@@ -206,6 +226,15 @@ router.put('/:id/reject', async (req, res) => {
     console.error('Error rejecting photo:', err);
     res.status(500).json({ error: 'Server error rejecting photo' });
   }
+});
+
+// GET supported image formats
+router.get('/formats', (req, res) => {
+  res.json({
+    supported_formats: SUPPORTED_FORMATS,
+    max_file_size: '10MB',
+    message: 'These formats are supported by Cloudflare Images'
+  });
 });
 
 module.exports = router; 
