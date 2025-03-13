@@ -1,0 +1,28 @@
+# Node.js dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment and local files
+.env
+.env.local
+.git
+.gitignore
+
+# Development files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Temporary uploads
+uploads/temp/*
+!uploads/temp/.gitkeep
+
+# Logs
+logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db 

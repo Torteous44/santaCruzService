@@ -15,11 +15,10 @@ const { connectToDatabase } = require('./utils/database');
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
 
 // Log environment configuration
 console.log(`Environment: ${process.env.NODE_ENV}`);
-console.log(`Server configured to use port: ${PORT}`);
+console.log(`Server configured to use port: ${process.env.PORT || 3000}`);
 
 // CORS Configuration
 // Allow all origins in development, specific origins in production
@@ -125,6 +124,9 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 }); 
