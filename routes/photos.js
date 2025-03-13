@@ -39,6 +39,11 @@ const upload = multer({
 
 // GET all photos with optional filters
 router.get('/', async (req, res) => {
+  // Explicitly set CORS headers for this specific route
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  
   try {
     const { status, floorId } = req.query;
     
@@ -383,6 +388,27 @@ router.get('/cors-check', (req, res) => {
       received: req.headers
     }
   });
+});
+
+// Special route specifically for approved photos (to handle the common case)
+router.get('/approved', async (req, res) => {
+  // Explicitly set all CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  
+  try {
+    // Get approved photos
+    const photos = await Photo.find({ status: 'approved' }).sort({ submittedAt: -1 });
+    
+    // Log success for debugging
+    console.log(`Successfully retrieved ${photos.length} approved photos`);
+    
+    res.json(photos);
+  } catch (err) {
+    console.error('Error fetching approved photos:', err);
+    res.status(500).json({ error: 'Server error fetching approved photos' });
+  }
 });
 
 module.exports = router; 

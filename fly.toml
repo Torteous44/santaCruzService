@@ -16,6 +16,15 @@ primary_region = "cdg"
   min_machines_running = 0
   processes = ["app"]
 
+  [[http_service.headers]]
+    for = "/*"
+    [http_service.headers.values]
+      Access-Control-Allow-Origin = "*"
+      Access-Control-Allow-Methods = "*"
+      Access-Control-Allow-Headers = "*"
+      Access-Control-Allow-Credentials = "true"
+      Access-Control-Max-Age = "86400"
+
 [[http_service.checks]]
   grace_period = "10s"
   interval = "30s"

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +17,25 @@ const { connectToDatabase } = require('./utils/database');
 // Initialize Express app
 const app = express();
 
+// ABSOLUTE HIGHEST PRIORITY: CORS HEADERS FOR EVERYTHING
+// This simple middleware will add CORS headers to EVERY response
+// It runs before any other middleware or route handlers
+app.use((req, res, next) => {
+  // Allow ANY origin, method, and header
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+
+  // Handle preflight requests immediately
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
+  next();
+});
+
 // Log environment configuration
 console.log(`Environment: ${process.env.NODE_ENV}`);
 console.log(`Server configured to use port: ${process.env.PORT || 3000}`);
@@ -28,33 +48,13 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 console.log('CORS allowed origins:', allowedOrigins.filter(Boolean));
 
-// Create a wildcard CORS middleware for Render deployment
-app.use((req, res, next) => {
-  // Set wildcard CORS headers for maximum leniency
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', '*');
-  res.header('Access-Control-Allow-Headers', '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  
-  // For preflight OPTIONS requests, respond immediately
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  
-  next();
-});
-
-// Standard CORS middleware as backup with maximum leniency
+// Use the cors package as a fallback
 app.use(cors({
   origin: '*',
-  credentials: true,
   methods: '*',
   allowedHeaders: '*',
   exposedHeaders: '*',
-  maxAge: 86400,
-  optionsSuccessStatus: 204,
-  preflightContinue: false
+  credentials: true
 }));
 
 // Increase the limit for JSON and URL-encoded payloads
@@ -71,6 +71,32 @@ connectToDatabase().then(() => {
   console.error('Failed to initialize database:', err);
 });
 
+// Database connection check middleware
+app.use((req, res, next) => {
+  // Skip the check for health check endpoint
+  if (req.url === '/api/admin/healthcheck') {
+    return next();
+  }
+  
+  // Check if database is connected before proceeding with the request
+  if (mongoose.connection.readyState !== 1) {
+    console.error('Database not connected! Request to', req.url);
+    
+    // Still set CORS headers even for error responses
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', '*');
+    res.header('Access-Control-Allow-Headers', '*');
+    
+    return res.status(503).json({ 
+      error: 'Service unavailable', 
+      message: 'Database connection not established',
+      cors: 'enabled'
+    });
+  }
+  
+  next();
+});
+
 // Routes
 app.use('/api/photos', photoRoutes);
 app.use('/api/admin', adminRoutes);
@@ -82,8 +108,14 @@ app.get('/api', (req, res) => {
     version: '1.0',
     endpoints: [
       '/api/photos',
+      '/api/photos/upload',
+      '/api/photos/formats',
+      '/api/photos/cors-check',
+      '/api/photos/approved',
       '/api/admin/healthcheck',
-      '/api/admin/debug'
+      '/api/admin/debug',
+      '/api/admin/photos/pending',
+      '/api/admin/photos/stats'
     ]
   });
 });

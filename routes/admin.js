@@ -5,6 +5,11 @@ const Photo = require('../models/Photo');
 
 // Health check endpoint
 router.get('/healthcheck', async (req, res) => {
+  // Add CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  
   try {
     const healthData = {
       uptime: process.uptime(),
@@ -65,6 +70,11 @@ router.get('/debug', (req, res) => {
 
 // Get all pending photos
 router.get('/photos/pending', async (req, res) => {
+  // Add CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  
   try {
     const pendingPhotos = await Photo.find({ status: 'pending' })
       .sort({ submittedAt: -1 });
@@ -81,6 +91,11 @@ router.get('/photos/pending', async (req, res) => {
 
 // Get photo statistics
 router.get('/photos/stats', async (req, res) => {
+  // Add CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', '*');
+  res.header('Access-Control-Allow-Headers', '*');
+  
   try {
     const stats = await Photo.aggregate([
       {
