@@ -2,7 +2,7 @@ app = "santacruzservice"
 primary_region = "cdg"
 
 [build]
-  builder = "heroku/buildpacks:20"
+  builder = "heroku/builder:22"
 
 [env]
   PORT = "3000"
@@ -22,19 +22,4 @@ primary_region = "cdg"
   method = "GET"
   path = "/api/admin/healthcheck"
   timeout = "5s"
-  protocol = "http"
-
-[[services.ports]]
-  handlers = ["http"]
-  port = 80
-  force_https = true
-
-[[services.ports]]
-  handlers = ["tls", "http"]
-  port = 443
-
-[[services.tcp_checks]]
-  grace_period = "1s"
-  interval = "15s"
-  restart_limit = 0
-  timeout = "2s" 
+  protocol = "http" 
